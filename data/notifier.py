@@ -50,7 +50,7 @@ class AlertNotifier:
         self.telegram_token = telegram_token or os.getenv("TELEGRAM_BOT_TOKEN")
         self.telegram_chat_id = telegram_chat_id or os.getenv("TELEGRAM_CHAT_ID")
         self.smtp_host = smtp_host or os.getenv("SMTP_HOST")
-        self.smtp_port = int(smtp_port or os.getenv("SMTP_PORT", 587))
+        self.smtp_port = int(smtp_port or os.getenv("SMTP_PORT") or 587) 
         self.smtp_user = smtp_user or os.getenv("SMTP_USER")
         self.smtp_password = smtp_password or os.getenv("SMTP_PASSWORD")
         self.email_to = email_to or os.getenv("ALERT_EMAIL_TO")
