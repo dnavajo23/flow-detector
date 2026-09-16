@@ -1,0 +1,6 @@
+polygon-api-client
+python-dotenv
+requests
+pandas_market_calendars
+pandas
+lxml
