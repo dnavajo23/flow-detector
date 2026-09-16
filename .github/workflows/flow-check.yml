@@ -1,0 +1,69 @@
+name: Flow Check
+
+on:
+  schedule:
+    # Cada 15 min, 13:00-21:59 UTC, lunes a viernes. Este rango cubre de
+    # sobra 9:30-16:00 ET tanto en horario de verano (EDT, UTC-4) como de
+    # invierno (EST, UTC-5) de EE.UU. El propio script (flow_check.py)
+    # comprueba con pandas_market_calendars si el mercado está realmente
+    # abierto (festivos incluidos) y sale de inmediato si no lo está, así
+    # que estas ejecuciones "de más" son gratis y no hacen nada.
+    - cron: "*/15 13-21 * * 1-5"
+  workflow_dispatch: {}  # permite lanzarlo a mano desde la pestaña Actions
+
+concurrency:
+  group: flow-check
+  cancel-in-progress: false  # nunca pisar una ejecución que ya está escribiendo el estado
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15  # el primer día de refresco del universo tarda algo más
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt
+
+      - name: Restaurar estado (dedup de señales + cache del universo)
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            state/flow_state.json
+            state/universe_cache.json
+          key: flow-state-${{ github.run_id }}
+          restore-keys: |
+            flow-state-
+
+      - name: Ejecutar chequeo de flow
+        env:
+          POLYGON_API_KEY: ${{ secrets.POLYGON_API_KEY }}
+          FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          ALERT_EMAIL_TO: ${{ secrets.ALERT_EMAIL_TO }}
+        run: |
+          python data/flow_check.py \
+            --universe both \
+            --universe-cache state/universe_cache.json \
+            --catalysts-csv catalysts.csv \
+            --state-file state/flow_state.json
+
+      - name: Guardar estado actualizado
+        if: always()  # guarda el estado incluso si el paso anterior falló a medias
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            state/flow_state.json
+            state/universe_cache.json
+          key: flow-state-${{ github.run_id }}
