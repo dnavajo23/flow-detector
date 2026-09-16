@@ -1,0 +1,28 @@
+name: Keepalive
+
+# GitHub desactiva solo los workflows programados si el repositorio lleva
+# 60 días sin actividad. Este workflow hace un commit trivial una vez al
+# mes para que "Flow Check" nunca se desactive por inactividad. No hace
+# falta tocarlo.
+
+on:
+  schedule:
+    - cron: "0 0 1 * *"  # el día 1 de cada mes a las 00:00 UTC
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Commit trivial para mantener el repo "activo"
+        run: |
+          git config user.name "flow-bot"
+          git config user.email "flow-bot@users.noreply.github.com"
+          date -u +"%Y-%m-%dT%H:%M:%SZ" > .keepalive
+          git add .keepalive
+          git commit -m "chore: keepalive" || echo "nada que commitear"
+          git push
