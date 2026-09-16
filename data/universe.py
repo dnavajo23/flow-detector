@@ -37,7 +37,7 @@ import requests
 logger = logging.getLogger("universe")
 
 SP500_URL = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
-NASDAQ100_URL = "https://en.wikipedia.org/wiki/Nasdaq-100"
+NASDAQ100_URL = "https://en.wikipedia.org/wiki/List_of_NASDAQ-100_companies"
 
 # Wikipedia devuelve 403 Forbidden a peticiones sin un User-Agent que
 # parezca un navegador real — algo muy común desde IPs de datacenter como
