@@ -24,6 +24,7 @@ Uso:
 
 from __future__ import annotations
 
+import io
 import json
 import logging
 from datetime import date, datetime, timedelta
@@ -31,13 +32,32 @@ from pathlib import Path
 from typing import Iterable, List, Optional, Set
 
 import pandas as pd
+import requests
 
 logger = logging.getLogger("universe")
 
 SP500_URL = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
 NASDAQ100_URL = "https://en.wikipedia.org/wiki/Nasdaq-100"
 
+# Wikipedia devuelve 403 Forbidden a peticiones sin un User-Agent que
+# parezca un navegador real — algo muy común desde IPs de datacenter como
+# las de los runners de GitHub Actions. pd.read_html(url) usaría urllib
+# con su User-Agent por defecto y fallaría; en su lugar, pedimos el HTML
+# nosotros mismos con este header y se lo pasamos ya descargado a pandas.
+_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+    )
+}
+
 DEFAULT_CACHE_MAX_AGE_DAYS = 7  # los índices no cambian a diario
+
+
+def _fetch_html(url: str) -> str:
+    resp = requests.get(url, headers=_HEADERS, timeout=15)
+    resp.raise_for_status()
+    return resp.text
 
 
 def _find_ticker_column(df: pd.DataFrame) -> Optional[str]:
@@ -59,7 +79,8 @@ def _clean_tickers(series: pd.Series) -> List[str]:
 
 def fetch_sp500() -> List[str]:
     """Scrapea la tabla de constituyentes del S&P 500 desde Wikipedia."""
-    tables = pd.read_html(SP500_URL)
+    html = _fetch_html(SP500_URL)
+    tables = pd.read_html(io.StringIO(html))
     for df in tables:
         col = _find_ticker_column(df)
         if col is not None and len(df) > 400:  # la tabla de constituyentes tiene ~500 filas
@@ -69,7 +90,8 @@ def fetch_sp500() -> List[str]:
 
 def fetch_nasdaq100() -> List[str]:
     """Scrapea la tabla de constituyentes del Nasdaq-100 desde Wikipedia."""
-    tables = pd.read_html(NASDAQ100_URL)
+    html = _fetch_html(NASDAQ100_URL)
+    tables = pd.read_html(io.StringIO(html))
     for df in tables:
         col = _find_ticker_column(df)
         if col is not None and 80 < len(df) < 150:  # la tabla de componentes tiene ~100 filas
